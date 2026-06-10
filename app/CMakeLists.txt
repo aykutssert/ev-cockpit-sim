@@ -6,6 +6,7 @@ qt_add_executable(ev_cockpit_sim
   src/main.cpp
   src/vehicle_model.cpp
   src/cell_model.cpp
+  src/ota_model.cpp
 )
 
 qt_add_qml_module(ev_cockpit_sim
@@ -13,6 +14,8 @@ qt_add_qml_module(ev_cockpit_sim
   VERSION 1.0
   QML_FILES
     qml/Main.qml
+    qml/Dashboard.qml
+    qml/OtaPanel.qml
     qml/SocGauge.qml
     qml/StatTile.qml
     qml/BatteryGrid.qml
@@ -25,4 +28,5 @@ target_link_libraries(ev_cockpit_sim PRIVATE
   Qt6::Quick
   Qt6::QuickControls2
   bms
+  ota
 )

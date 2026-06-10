@@ -52,6 +52,8 @@ Architectural choices get recorded here once made, with the reason.
 |---|---|---|
 | UI framework | Qt 6 / QML | Industry standard for automotive HMI (used across OEM clusters and infotainment, including QML-based systems at major EV makers). Native macOS support, mature property/signal binding to a C++ backend, good fit for a live-updating dashboard. |
 | Simulation core separated from UI | Plain C++17 BMS library, Qt only in the presentation layer | Keeps the model unit-testable without an event loop, and keeps battery/fault logic out of QML. The same core could drive a different frontend or a headless test. |
+| OTA update model | A/B dual-slot with a post-install health check and automatic rollback | Mirrors how real software-defined vehicles update safely: the new image is written to the inactive slot and only committed if it passes a health check, so a failed update never leaves the device unbootable. The state machine is the interesting part, so it lives in a Qt-free, unit-tested core like the BMS. |
+| Qt Quick Controls style | Basic (set via QQuickStyle) instead of the native macOS style | The dark dashboard theme customizes control contentItems (checkbox/switch labels), which the native macOS style forbids. Basic is fully customizable and renders identically across platforms. |
 
 ## Roadmap
 
@@ -71,9 +73,39 @@ Architectural choices get recorded here once made, with the reason.
 - [x] Fault state surfaced visually (warning when a cell faults)
 
 ### Phase 3 - OTA Update Flow
-- [ ] OTA state machine: manifest, download, verify, A/B swap, health check, rollback
-- [ ] QML UI to trigger an update and show progress + current state
-- [ ] Fault injection: failed download / bad checksum triggers rollback
+- [x] OTA state machine: manifest, download, verify, A/B swap, health check, rollback
+- [x] QML UI to trigger an update and show progress + current state
+- [x] Fault injection: failed download / bad checksum triggers rollback
+
+## Results
+
+Running `ev_cockpit_sim` opens a two-tab cockpit:
+
+- **Dashboard** - an SoC gauge, speed, range, pack voltage, max cell
+  temperature, and current, plus a 96-cell grid coloured by state of charge.
+  The throttle slider and charge switch drive the BMS sim live; the
+  fault-injection buttons trip overtemperature and cell imbalance, which surface
+  as a red cell and a fault banner.
+- **Software** - the OTA flow. "Install" runs the update through Download ->
+  Verify -> Write slot -> Health check; on success the active slot flips
+  (A -> B) and the version advances (e.g. 1.4.0 -> 1.5.0). The fault-injection
+  checkboxes force a failed download, a checksum mismatch, or a failed health
+  check; in every failure case the active slot is left untouched and the UI
+  reports a rollback to the previous version.
+
+The two simulation cores (`bms`, `ota`) are covered by 14 unit tests run via
+CTest, independent of the GUI.
+
+**Limitations and simplifications:**
+- The cell OCV-SoC relationship is linear; real cells have a nonlinear curve
+  with a flat middle plateau.
+- The pack is modeled as cells in series only (no parallel groups), so the
+  "pack current" values are illustrative, not a real 5 Ah cell's C-rate.
+- The OTA download, checksum, and health check are simulated timers and flags,
+  not real image transfer or verification - the point is the A/B + rollback
+  state machine, not cryptographic integrity.
+- Cell cooling is tuned so overtemperature comes from fault injection rather
+  than normal driving load.
 
 ## Success Criteria
 
@@ -85,4 +117,5 @@ Architectural choices get recorded here once made, with the reason.
 
 ## Status
 
-Phase 0 (toolchain) - done. Phase 1 (BMS core) - done, 7 passing unit tests. Phase 2 (dashboard) - done, live Qt/QML cockpit driven by the BMS sim. Phase 3 (OTA) - next.
+All phases done. Qt6/QML cockpit with a tested BMS simulation core, a live
+dashboard, and an A/B OTA update flow with rollback. 14 unit tests passing.

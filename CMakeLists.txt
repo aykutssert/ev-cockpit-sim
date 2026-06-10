@@ -12,4 +12,5 @@ endif()
 enable_testing()
 
 add_subdirectory(bms)
+add_subdirectory(ota)
 add_subdirectory(app)
