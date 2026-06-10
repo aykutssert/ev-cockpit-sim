@@ -65,10 +65,10 @@ Architectural choices get recorded here once made, with the reason.
 - [x] Unit tests for SoC integration, fault thresholds, charge/discharge
 
 ### Phase 2 - Infotainment Dashboard
-- [ ] C++ backend exposing simulation state to QML (Q_PROPERTY + signals)
-- [ ] QML dashboard: SoC gauge, range, speed, per-cell battery view
-- [ ] Live updates: timer-driven simulation reflected in the UI
-- [ ] Fault state surfaced visually (warning when a cell faults)
+- [x] C++ backend exposing simulation state to QML (Q_PROPERTY + signals)
+- [x] QML dashboard: SoC gauge, range, speed, per-cell battery view
+- [x] Live updates: timer-driven simulation reflected in the UI
+- [x] Fault state surfaced visually (warning when a cell faults)
 
 ### Phase 3 - OTA Update Flow
 - [ ] OTA state machine: manifest, download, verify, A/B swap, health check, rollback
@@ -85,4 +85,4 @@ Architectural choices get recorded here once made, with the reason.
 
 ## Status
 
-Phase 0 (toolchain) - done. Phase 1 (BMS core) - done, deterministic model with 7 passing unit tests. Phase 2 (dashboard) - next.
+Phase 0 (toolchain) - done. Phase 1 (BMS core) - done, 7 passing unit tests. Phase 2 (dashboard) - done, live Qt/QML cockpit driven by the BMS sim. Phase 3 (OTA) - next.

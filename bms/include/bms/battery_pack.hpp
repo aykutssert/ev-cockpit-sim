@@ -30,7 +30,7 @@ struct PackConfig {
     double internal_resistance_ohm = 0.01; // per cell
     double ambient_temp_c = 25.0;
     double thermal_mass = 800.0; // J per deg C, per cell
-    double cooling_coeff = 1.5;  // W per deg C, per cell (convective loss to ambient)
+    double cooling_coeff = 16.0; // W per deg C, per cell (convective loss to ambient)
 
     // Fault thresholds.
     double overtemp_c = 55.0;
