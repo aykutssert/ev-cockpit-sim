@@ -27,14 +27,15 @@ struct Fault {
 struct PackConfig {
     int cell_count = 96;
     double cell_capacity_ah = 5.0;
-    double internal_resistance_ohm = 0.01; // per cell
+    double internal_resistance_ohm = 0.001; // per cell; small so normal load does
+                                            // not sag every cell into undervoltage
     double ambient_temp_c = 25.0;
     double thermal_mass = 800.0; // J per deg C, per cell
     double cooling_coeff = 16.0; // W per deg C, per cell (convective loss to ambient)
 
     // Fault thresholds.
     double overtemp_c = 55.0;
-    double overvoltage_v = 4.25;
+    double overvoltage_v = 4.30;
     double undervoltage_v = 2.80;
     double imbalance_soc = 0.15; // max-min SoC spread that counts as imbalance
 };
@@ -60,7 +61,15 @@ public:
     // temperature; injectImbalance adds a continuous parasitic drain (amps) to
     // one cell so its SoC drifts away from the pack over time.
     void injectOverTemperature(int cell_index, double temp_c);
-    void injectImbalance(int cell_index, double drain_amps);
+    // Immediately drop one cell's SoC by soc_drop so it drifts from the pack.
+    // If the drift exceeds the imbalance threshold it trips the imbalance fault
+    // at once. The drift persists (the cell stays low through charge/discharge)
+    // until clearInjections rebalances the pack.
+    void injectImbalance(int cell_index, double soc_drop);
+    // Stop all injections and return the pack to a healthy state: cell
+    // temperatures relax to ambient and every cell is rebalanced to the pack
+    // mean SoC. This clears injected overtemp/imbalance faults immediately, as
+    // a "clear faults / balance" maintenance action would.
     void clearInjections();
 
     // Outputs.
@@ -78,7 +87,6 @@ private:
     PackConfig cfg_;
     std::vector<CellState> cells_;
     std::vector<double> forced_temp_; // NaN = not forced
-    std::vector<double> drain_amps_;  // parasitic per-cell drain
     double current_ = 0.0;
 
     double ocv(double soc) const; // open-circuit voltage for a given SoC

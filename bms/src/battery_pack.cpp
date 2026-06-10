@@ -21,7 +21,6 @@ BatteryPack::BatteryPack(PackConfig config) : cfg_(config) {
     const int n = std::max(1, cfg_.cell_count);
     cells_.assign(static_cast<size_t>(n), CellState{});
     forced_temp_.assign(static_cast<size_t>(n), kNan);
-    drain_amps_.assign(static_cast<size_t>(n), 0.0);
     for (auto& c : cells_) {
         c.soc = 1.0;
         c.temperature = cfg_.ambient_temp_c;
@@ -41,15 +40,25 @@ void BatteryPack::injectOverTemperature(int cell_index, double temp_c) {
     }
 }
 
-void BatteryPack::injectImbalance(int cell_index, double drain_amps) {
+void BatteryPack::injectImbalance(int cell_index, double soc_drop) {
     if (cell_index >= 0 && cell_index < cellCount()) {
-        drain_amps_[static_cast<size_t>(cell_index)] = drain_amps;
+        CellState& c = cells_[static_cast<size_t>(cell_index)];
+        c.soc = std::clamp(c.soc - soc_drop, 0.0, 1.0);
+        c.voltage = ocv(c.soc);
     }
 }
 
 void BatteryPack::clearInjections() {
     std::fill(forced_temp_.begin(), forced_temp_.end(), kNan);
-    std::fill(drain_amps_.begin(), drain_amps_.end(), 0.0);
+
+    // Return to a healthy state so injected faults clear at once: relax all
+    // temperatures to ambient and rebalance every cell to the pack mean SoC.
+    const double mean_soc = packSoc();
+    for (auto& c : cells_) {
+        c.temperature = cfg_.ambient_temp_c;
+        c.soc = mean_soc;
+        c.voltage = ocv(c.soc);
+    }
 }
 
 void BatteryPack::step(double dt_seconds) {
@@ -62,9 +71,8 @@ void BatteryPack::step(double dt_seconds) {
     for (size_t i = 0; i < cells_.size(); ++i) {
         CellState& c = cells_[i];
 
-        // Same series current flows through every cell, plus any injected
-        // parasitic drain unique to this cell.
-        const double cell_current = current_ + drain_amps_[i];
+        // Same series current flows through every cell.
+        const double cell_current = current_;
 
         // Coulomb counting: discharge (positive current) lowers SoC.
         c.soc -= cell_current * dt_seconds / cap_coulombs;
@@ -140,7 +148,14 @@ std::vector<Fault> BatteryPack::faults() const {
         }
     }
     if (socSpread() > cfg_.imbalance_soc) {
-        out.push_back({FaultType::CellImbalance, -1});
+        // Report the lowest cell so the UI can highlight the one that drifted.
+        int low = 0;
+        for (int i = 1; i < cellCount(); ++i) {
+            if (cells_[static_cast<size_t>(i)].soc < cells_[static_cast<size_t>(low)].soc) {
+                low = i;
+            }
+        }
+        out.push_back({FaultType::CellImbalance, low});
     }
     return out;
 }

@@ -55,6 +55,10 @@ QString VehicleModel::faultText() const {
         return QStringLiteral("%1 x%2").arg(name).arg(g.count);
     };
 
+    // Imbalance is a pack-level condition; the reported cell index is only used
+    // to highlight the drifted cell in the grid, not in the banner text.
+    imbalance.first_cell = -1;
+
     QStringList parts;
     for (const QString& s : {label(QStringLiteral("Overtemp"), overtemp),
                              label(QStringLiteral("Overvoltage"), overvolt),
@@ -86,8 +90,9 @@ void VehicleModel::injectOvertemp() {
 }
 
 void VehicleModel::injectImbalance() {
-    // Add a parasitic drain so one cell drifts away from the pack over time.
-    pack_.injectImbalance(13, 8.0);
+    // Immediately drop one cell well past the imbalance threshold so the fault
+    // and the drifted (red) cell appear at once.
+    pack_.injectImbalance(13, 0.35);
 }
 
 void VehicleModel::clearFaults() { pack_.clearInjections(); }

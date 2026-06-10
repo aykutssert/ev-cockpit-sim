@@ -86,20 +86,41 @@ void test_overtemp_injection() {
     check(right_cell, "overtemp fault reports the injected cell index");
 }
 
-// A parasitic drain on one cell pulls its SoC away from the pack until the
-// imbalance threshold trips.
+// Dropping one cell's SoC past the threshold trips the imbalance fault at once,
+// and the fault reports that drifted cell.
 void test_imbalance_injection() {
     bms::PackConfig cfg;
     cfg.cell_count = 10;
     cfg.imbalance_soc = 0.15;
     bms::BatteryPack pack(cfg);
-    pack.injectImbalance(0, 5.0); // 5 A extra drain on cell 0
     check(!hasFault(pack, bms::FaultType::CellImbalance), "no imbalance at start");
-    for (int i = 0; i < 600; ++i) {
-        pack.step(1.0);
+
+    pack.injectImbalance(4, 0.35); // drop cell 4 by 0.35
+    check(pack.socSpread() > 0.15, "dropped cell creates SoC spread > threshold");
+    check(hasFault(pack, bms::FaultType::CellImbalance), "imbalance fault trips immediately");
+
+    bool right_cell = false;
+    for (const auto& f : pack.faults()) {
+        if (f.type == bms::FaultType::CellImbalance && f.cell_index == 4) {
+            right_cell = true;
+        }
     }
-    check(pack.socSpread() > 0.15, "drained cell creates SoC spread > threshold");
-    check(hasFault(pack, bms::FaultType::CellImbalance), "imbalance fault trips");
+    check(right_cell, "imbalance fault reports the drifted cell");
+}
+
+// clearInjections must stop injections and return the pack to a healthy,
+// balanced state so injected faults clear at once.
+void test_clear_injections() {
+    bms::BatteryPack pack;
+    pack.injectOverTemperature(7, 70.0);
+    pack.injectImbalance(13, 0.35);
+    pack.step(1.0);
+    check(hasFault(pack, bms::FaultType::OverTemperature), "overtemp present before clear");
+    check(hasFault(pack, bms::FaultType::CellImbalance), "imbalance present before clear");
+
+    pack.clearInjections();
+    check(!pack.hasFault(), "clearInjections clears injected faults");
+    check(pack.socSpread() < 1e-9, "clearInjections rebalances cells to one SoC");
 }
 
 // Same inputs, same outputs: the model must be deterministic.
@@ -140,6 +161,7 @@ int main() {
     test_pack_voltage();
     test_overtemp_injection();
     test_imbalance_injection();
+    test_clear_injections();
     test_determinism();
     test_thermal_rise();
 
