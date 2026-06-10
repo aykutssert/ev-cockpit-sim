@@ -13,21 +13,55 @@ double VehicleModel::soc() const { return pack_.packSoc(); }
 double VehicleModel::range() const { return kFullRangeKm * pack_.packSoc(); }
 
 QString VehicleModel::faultText() const {
-    QStringList parts;
+    // Aggregate by fault type so a pack-wide condition (e.g. every cell
+    // undervolting at 0% SoC) reads as "Undervoltage x96" instead of listing
+    // all 96 cells and overflowing the banner.
+    struct Group {
+        int count = 0;
+        int first_cell = -1;
+    };
+    Group overtemp, imbalance, overvolt, undervolt;
+    auto add = [](Group& g, int cell) {
+        if (g.count == 0) {
+            g.first_cell = cell;
+        }
+        ++g.count;
+    };
     for (const auto& f : pack_.faults()) {
         switch (f.type) {
         case bms::FaultType::OverTemperature:
-            parts << QStringLiteral("Overtemp cell %1").arg(f.cell_index);
+            add(overtemp, f.cell_index);
             break;
         case bms::FaultType::CellImbalance:
-            parts << QStringLiteral("Cell imbalance");
+            add(imbalance, f.cell_index);
             break;
         case bms::FaultType::OverVoltage:
-            parts << QStringLiteral("Overvoltage cell %1").arg(f.cell_index);
+            add(overvolt, f.cell_index);
             break;
         case bms::FaultType::UnderVoltage:
-            parts << QStringLiteral("Undervoltage cell %1").arg(f.cell_index);
+            add(undervolt, f.cell_index);
             break;
+        }
+    }
+
+    auto label = [](const QString& name, const Group& g) {
+        if (g.count == 0) {
+            return QString();
+        }
+        if (g.count == 1) {
+            return g.first_cell >= 0 ? QStringLiteral("%1 cell %2").arg(name).arg(g.first_cell)
+                                     : name;
+        }
+        return QStringLiteral("%1 x%2").arg(name).arg(g.count);
+    };
+
+    QStringList parts;
+    for (const QString& s : {label(QStringLiteral("Overtemp"), overtemp),
+                             label(QStringLiteral("Overvoltage"), overvolt),
+                             label(QStringLiteral("Undervoltage"), undervolt),
+                             label(QStringLiteral("Cell imbalance"), imbalance)}) {
+        if (!s.isEmpty()) {
+            parts << s;
         }
     }
     return parts.join(QStringLiteral(", "));

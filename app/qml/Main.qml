@@ -65,10 +65,15 @@ Window {
                 border.color: win.warnRed
                 border.width: 1
                 implicitHeight: 38
-                implicitWidth: bannerText.implicitWidth + 28
+                implicitWidth: Math.min(bannerText.implicitWidth + 28, 460)
+                Layout.maximumWidth: 460
+                clip: true
                 Text {
                     id: bannerText
-                    anchors.centerIn: parent
+                    anchors.fill: parent
+                    anchors.leftMargin: 14
+                    anchors.rightMargin: 14
+                    verticalAlignment: Text.AlignVCenter
                     text: "⚠  " + vehicle.faultText
                     color: win.warnRed
                     font.pixelSize: 14
