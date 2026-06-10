@@ -59,10 +59,10 @@ Architectural choices get recorded here once made, with the reason.
 - [x] Verify Qt6 builds and launches a minimal QML window on macOS via CMake (critical assumption)
 
 ### Phase 1 - BMS Simulation Core
-- [ ] Battery pack model: N cells, per-cell voltage + temperature, pack-level SoC
-- [ ] Charge / discharge dynamics driven by a deterministic `step(dt)`
-- [ ] Fault injection: overtemperature, cell imbalance, overvoltage
-- [ ] Unit tests for SoC integration, fault thresholds, charge/discharge
+- [x] Battery pack model: N cells, per-cell voltage + temperature, pack-level SoC
+- [x] Charge / discharge dynamics driven by a deterministic `step(dt)`
+- [x] Fault injection: overtemperature, cell imbalance, overvoltage
+- [x] Unit tests for SoC integration, fault thresholds, charge/discharge
 
 ### Phase 2 - Infotainment Dashboard
 - [ ] C++ backend exposing simulation state to QML (Q_PROPERTY + signals)
@@ -85,4 +85,4 @@ Architectural choices get recorded here once made, with the reason.
 
 ## Status
 
-Phase 0 (toolchain) - done, Qt 6.11 QML app builds and launches on macOS. Phase 1 (BMS core) - next.
+Phase 0 (toolchain) - done. Phase 1 (BMS core) - done, deterministic model with 7 passing unit tests. Phase 2 (dashboard) - next.
